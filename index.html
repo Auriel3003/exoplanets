@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Editable Scatter Plot</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background-image: url('https://cdn.mos.cms.futurecdn.net/Vu8RiDhjzJ8Zu5YhbQdnsg.jpg'); /* Set your background image here */
+      background-size: cover; /* Ensures the image covers the entire page */
+      background-position: center; /* Keeps the image centered */
+      background-attachment: fixed; /* Keeps the image fixed while scrolling */
+      background-repeat: no-repeat; /* Ensures the image does not repeat */
+      color: #fff; /* Adjusts text color for better visibility on the background */
+    }
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 10px;
+  background-color: rgba(255, 255, 255, 0.3); /* Lightens the background with slight transparency */
+  border-radius: 10px;
+}
+
+.card {
+
+  padding: 10px;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Soft shadow for better contrast */
+  transition: all 0.3s ease;
+}
+
+    .card:hover {
+      transform: translateY(-10px);
+    }
+
+    .card-header {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .dropdown-container {
+      margin-bottom: 20px;
+    }
+
+    #update-button {
+  background-color: #8A2BE2; /* Violet color */
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 25px; /* Rounded corners */
+  cursor: pointer;
+  transition: transform 0.3s ease, background-color 0.3s ease;
+  margin: 20px auto; /* Center alignment */
+  display: block; /* Make button a block element to center */
+}
+
+    #update-button:hover {
+  transform: translateY(-5px); /* Lift the button */
+  background-color: #32CD32; /* Turn to green */
+}
+
+    #update-button:focus {
+  outline: none;
+}
+
+
+    select {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      outline: none;
+      transition: 0.3s;
+    }
+
+    select:hover {
+      border-color: #4C51BF;
+    }
+
+    button {
+      padding: 12px 24px;
+      font-size: 18px;
+      color: #fff;
+      background-color: #4C51BF;
+      border-radius: 50px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #38A169;
+      transform: translateY(-5px);
+    }
+
+.graph-container {
+  margin-top: 40px;
+  text-align: center;
+  color: #fff; /* Set the text color to white */
+}
+
+
+
+    canvas {
+      max-width: 100%;
+      margin: 0 auto;
+      height: 500px;
+    }
+
+    .planet-info-card {
+      display: none;
+      margin-top: 5px;
+      background-color: rgba(255, 255, 255, 0.3); /* Lightens the background with slight transparency */
+      transition: all 0.3s ease;
+    }
+
+    .planet-info-card.show {
+      display: block;
+    }
+    
+    .header {
+      text-align: center;
+      font-size: 18px;
+      font-weight: bold;
+      margin: 20px 0;
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 16px;
+      margin: 40px 0;
+      font-weight: bold;
+
+  </style>
+</head>
+
+<body class="bg-gray-100">
+
+  <div class="container">
+    <div class="card">
+      <div class="card-header">
+        EXOPLANET Plotter
+      </div>
+
+      <div>
+        <label for="fileInput" class="text-lg font-semibold text-gray-700">Upload JSON File:</label>
+        <input type="file" id="fileInput" accept=".json" class="block mt-2 p-2 rounded border border-gray-300">
+      </div>
+
+      <div class="dropdown-container mt-6" id="dropdowns" style="display: none;">
+        <div class="mb-4">
+          <label for="x-axis" class="text-lg font-semibold text-gray-700">Select X-Axis:</label>
+          <select id="x-axis" class="mt-2 block w-full max-w-xs mx-auto">
+          </select>
+        </div>
+
+        <div class="mb-4">
+          <label for="y-axis" class="text-lg font-semibold text-gray-700">Select Y-Axis:</label>
+          <select id="y-axis" class="mt-2 block w-full max-w-xs mx-auto">
+          </select>
+        </div>
+
+        <button id="update-graph" class="mt-4 rounded-lg px-6 py-3 bg-violet-600 hover:bg-green-500 text-white transition-transform transform hover:scale-105">
+  Update Graph
+</button>
+
+      </div>
+
+      <div class="graph-container">
+        <canvas id="editableGraph"></canvas>
+      </div>
+
+      <!-- Exoplanet Info Card -->
+      <div id="planet-info" class="planet-info-card p-6 rounded-lg shadow-lg">
+        <h2 class="text-2xl font-semibold mb-4">Exoplanet Details</h2>
+        <pre id="planet-info-text" class="text-sm text-gray-700"></pre>
+      </div>
+    </div>
+  </div>
+  
+
+  <div class="footer">
+  
+    To download sample .json file, visit: <a href="https://example.com/sample.json" target="_blank" class="text-blue-500">Download Sample JSON</a>
+
+<br>
+  
+    Happy Planet Hunting 🤗
+  </div>
+
+  <script>
+    let scatterChart;
+    const chartContext = document.getElementById("editableGraph").getContext("2d");
+
+    // Handle file upload
+    document.getElementById("fileInput").addEventListener("change", function (event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const jsonData = JSON.parse(e.target.result);
+          initializeDropdownsAndGraph(jsonData);
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    // Initialize dropdowns and graph
+    function initializeDropdownsAndGraph(data) {
+      const numericKeys = Object.keys(data[0]).filter(
+        (key) => typeof data[0][key] === "number"
+      );
+
+      const dropdownContainer = document.getElementById("dropdowns");
+      const xAxisDropdown = document.getElementById("x-axis");
+      const yAxisDropdown = document.getElementById("y-axis");
+
+      // Populate dropdowns
+      numericKeys.forEach((key) => {
+        const xOption = document.createElement("option");
+        xOption.value = key;
+        xOption.textContent = key;
+        xAxisDropdown.appendChild(xOption);
+
+        const yOption = document.createElement("option");
+        yOption.value = key;
+        yOption.textContent = key;
+        yAxisDropdown.appendChild(yOption);
+      });
+
+      // Show dropdowns and update graph
+      dropdownContainer.style.display = "block";
+
+      // Initial graph
+      createScatterPlot(data, numericKeys[0], numericKeys[1]);
+
+      // Update graph on button click
+      document.getElementById("update-graph").addEventListener("click", () => {
+        const xKey = xAxisDropdown.value;
+        const yKey = yAxisDropdown.value;
+        createScatterPlot(data, xKey, yKey);
+      });
+    }
+
+    // Map Discovery Methods to Colors
+
+	const discoveryMethodColors = {
+	  "Transit": "rgba(255, 99, 132, 0.6)",
+	  "Radial Velocity": "rgba(54, 162, 235, 0.6)",
+	  "Direct Imaging": "rgba(75, 192, 192, 0.6)",
+	  "Gravitational Microlensing": "rgba(153, 102, 255, 0.6)",
+	  "Pulsar Timing": "rgba(255, 159, 64, 0.6)",
+	  "Astrometry": "rgba(255, 205, 86, 0.6)",
+	  "Orbital Brightness Modulation": "rgba(105, 105, 105, 0.6)",
+	  "X-ray Monitoring": "rgba(255, 165, 0, 0.6)",
+	  "Optical Monitoring": "rgba(255, 215, 0, 0.6)",
+	  "Microlensing": "rgba(0, 255, 255, 0.6)",
+	  "Spectroscopy": "rgba(255, 20, 147, 0.6)"
+	};
+
+    // Create scatter plot with color scheme based on discovery method
+    function createScatterPlot(data, xKey, yKey) {
+      const plotData = data
+        .filter((item) => item[xKey] !== undefined && item[yKey] !== undefined)
+        .map((item) => ({
+          x: item[xKey],
+          y: item[yKey],
+          name: item["Planet Name"],  // Store the planet name
+          details: item,  // Store the full details of the exoplanet
+          discoveryMethod: item["Discovery Method"] || "Unknown"  // Use Discovery Method for color
+        }));
+
+      // Generate dataset for each discovery method
+      const datasets = Object.keys(discoveryMethodColors).map((method) => ({
+        label: method,
+        data: plotData.filter((item) => item.discoveryMethod === method),
+        backgroundColor: discoveryMethodColors[method],
+        borderColor: discoveryMethodColors[method],
+        borderWidth: 1,
+        pointRadius: 5,
+      }));
+
+      const config = {
+        type: "scatter",
+        data: {
+          datasets: datasets,
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            tooltip: {
+              enabled: false,  // Disable the default tooltip
+            },
+            legend: {
+              position: "top",
+              labels: {
+                boxWidth: 15,
+                padding: 15,
+              },
+            },
+          },
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: xKey,
+              },
+            },
+            y: {
+              title: {
+                display: true,
+                text: yKey,
+              },
+            },
+          },
+          onClick: function (event, chartElement) {
+            if (chartElement.length > 0) {
+              const point = chartElement[0].element;
+
+              // Show exoplanet info card with details
+              const planetDetails = point.$context.raw.details;
+              const infoCard = document.getElementById('planet-info');
+              const planetInfoText = document.getElementById('planet-info-text');
+              planetInfoText.textContent = JSON.stringify(planetDetails, null, 2);
+              infoCard.classList.add('show');
+            }
+          },
+        },
+      };
+
+      if (scatterChart) scatterChart.destroy();
+      scatterChart = new Chart(chartContext, config);
+    }
+  </script>
+
+</body>
+
+</html>
